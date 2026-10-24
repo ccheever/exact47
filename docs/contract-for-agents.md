@@ -3755,10 +3755,19 @@ browser's 16). A `text role="heading"` with no `font-size` or `font-weight` of
 its own is the platform's text style for its `aria-level` (LLP 1115 D3): 1
 `title1`, 2 (the default) `title2`, 3 `title3`, 4 and on `headline`, sized for
 the reader's Dynamic Type by Apple's own ramp (iOS at the default size:
-28/22/20/17 pt, levels 1 and 2 bold and 3 semibold as Apple's emphasized titles, `headline`
-semibold; the Mac: 22/17/15/13, `headline` bold; the web reads the ramp at its
-16 px root: 27/21/19/16, in `rem`). So omit `font-size` on headings; a written
+28/22/20/17 pt; the Mac: 22/17/15/13; the web reads the ramp at its
+16 px root: 27/21/19/16, in `rem`). Native hosts keep each text style's own
+weight and leading. Web and painted hosts emphasize title headings: levels 1
+and 2 bold, 3 semibold. So omit `font-size` on headings; a written
 `font-size` or `font-weight` on the heading wins, an inherited one does not.
+A native navigation bar or grouped-list header owns its title's typography and
+spacing. Leave those unsaid. By default, an iOS route's level-1 heading makes a
+large navigation title; other levels make an inline title. A platform access
+hatch can override that presentation without changing the semantic heading rank,
+using UIKit's `largeTitleDisplayMode`, for example. Access hatches and native
+views expose the APIs supported by that host; check its implementation before
+assuming a customization exists on every platform.
+
 Other text takes a style by name with `font`, as WebKit's
 `font: -apple-system-headline`: `font="-exact-footnote"` (or
 `"-apple-system-footnote"`) sets the style's size and a `normal` font style, and
