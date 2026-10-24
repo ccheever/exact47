@@ -33,11 +33,19 @@ package final class TextArea: NSTextView {
     /// The source's length at the last selection change: a change that
     /// comes with a new length is an edit's.
     var markupLength = 0
+    /// Its inline atoms' accessibility children (FieldAtoms.swift, LLP 1045.000 D8).
+    var atomElements: [AtomElement] = []
+    package override func accessibilityChildren() -> [Any]? { atomElements.isEmpty ? super.accessibilityChildren() : (super.accessibilityChildren() ?? []) + atomElements }
+    // A press on a pill is the atom's (D7); the arrow over one, as over a token.
+    package override func hitTest(_ point: NSPoint) -> NSView? { atomHit(point) ?? super.hitTest(point) }
+    package override func resetCursorRects() { super.resetCursorRects(); addAtomCursorRects() }
+    // A pill is a picture drawn for one appearance: drawn again for another.
+    package override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); if markup != nil { owner?.restyleMarkup() } }
     // Typed text never takes a link's marks from the character before the
     // caret (its closing parenthesis, or its `[`).
     package override var typingAttributes: [NSAttributedString.Key: Any] {
         get { super.typingAttributes }
-        set { var shown = newValue; shown[.markupHidden] = nil; shown[.markupOpener] = nil; super.typingAttributes = shown }
+        set { var shown = newValue; shown[.markupHidden] = nil; shown[.markupOpener] = nil; shown[.markupAtom] = nil; super.typingAttributes = shown }
     }
     // AppKit asks the first responder for the mask: the native bezel's
     // scroll view, or the bare node's whole authored box.
@@ -90,8 +98,13 @@ package final class TextArea: NSTextView {
         guard markup != nil, let storage = textStorage, let full, full.length == range.length, NSMaxRange(range) <= storage.length,
               storage.hidesSource(in: range) else { return full }
         let shown = NSMutableAttributedString(attributedString: full)
-        storage.enumerateAttribute(.markupHidden, in: range, options: .reverse) { value, run, _ in
-            if value != nil { shown.deleteCharacters(in: NSRange(location: run.location - range.location, length: run.length)) }
+        // Hidden runs read as nothing, an atom as its label (LLP 1045.000 D8).
+        storage.enumerateAttributes(in: range, options: .reverse) { attributes, run, _ in
+            let local = NSRange(location: run.location - range.location, length: run.length)
+            if let atom = attributes[.markupAtom] as? MarkupAtom {
+                let label = storage.atomRange(at: run.location)?.location == run.location ? atom.label : ""
+                shown.replaceCharacters(in: local, with: label)
+            } else if attributes[.markupHidden] != nil { shown.deleteCharacters(in: local) }
         }
         return shown
     }
@@ -264,7 +277,7 @@ package final class TextArea: NSTextView {
 
     @objc package func copyPlainText(_ sender: Any?) {
         guard markup != nil, selectedRange().length > 0,
-              let plain = MarkdownLink.installed?.plain((string as NSString).substring(with: selectedRange())) else { return }
+              let plain = MarkdownLink.installed?.plain((string as NSString).substring(with: selectedRange()), atoms: owner?.props["atoms"] ?? "", faces: owner?.props["atomFaces"] ?? "") else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(plain, forType: .string)
     }
